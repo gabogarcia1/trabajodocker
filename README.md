@@ -1,5 +1,6 @@
 
-## trabajo practico integrador
+## Trabajo practico integrador - Luis gabriel Garcia
+
 ## Descripción
 Elijo next JS usando typescript por que es el tipo de tecnologia que estoy utilizando en mi empresa. Estoy trabajando en un proyecto hace mas de un año con next y docker, tambien usa docker compose. Por fin entiendo mas para que sirven 😊.
 
