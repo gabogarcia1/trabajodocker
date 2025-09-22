@@ -1,62 +1,175 @@
 
-## Trabajo practico integrador - Luis gabriel Garcia
+# Trabajo practico integrador 2 - Luis Gabriel Garcia
 
-## Descripción
-Elijo next JS usando typescript por que es el tipo de tecnologia que estoy utilizando en mi empresa. Estoy trabajando en un proyecto hace mas de un año con next y docker, tambien usa docker compose. Por fin entiendo mas para que sirven 😊.
+## Enunciado
 
-Use redis, no porque habia algo de documentacion por internet, sino porque es lo que vimos en clase y no se me ocurrio mas. 
-el input va cambiando
+Tomando como punto de partida lo entregado en el trabajo práctico número 1, entregar un archivo de texto (Word, MD o similar) donde se explique cómo armaría la infraestructura en Kubernetes, y por qué, para correr la aplicación. Indicar si haría algún cambio en su arquitectura o tecnologías para lograr un buen escalamiento.
 
-Uso dockerfile de la documentacion de next
-https://nextjs.org/docs/app/getting-started/deploying#templates-1
-https://github.com/vercel/next.js/tree/canary/examples/with-docker
+Incluir, además, ejemplos de yaml donde se tenga en consideración el cómputo (pods/deployments/replicaset), persistencia (en caso de ser necesario) y red (servicios).
 
-## como correr la app en docker 
+Al menos el YAML de cómputo y persistencia debe correr en Kubernetes para Docker Dektop o GKE (indicar en cuál).
 
-```bash
-docker compose up --build
+## Desarrollo
+
+### 1. Subir imagen a Docker registry
+Para poder utilizar mi imagen tengo que subirla a docker registry
+```
+docker-compose up --build
+```
+imagen creada: `trabajodocker-web`
+
+```
+docker tag trabajodocker-web:latest gabogarcia/trabajodocker-web:latest
 ```
 
-# mas notas:
-Esta app esta usando la estructura "app-router based" de next, tiene un BFF (backend for front end ) que es donde puse el redis
-basicamente la el enpoint es [localhost:/3000/api/redisfetch](http://localhost:3000/api/redisfetch) lo podes ver si observas el network de la pagina
-
-y redis lo levanta en el puerto 6379, y tuve que cambiarle el host para que no sea localhost porque sino no lo levantaba. entonces lo levanta en redis/6379
-de ahi las variables de entorno 
-
-environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-![alt text](image.png)
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+docker push gabogarcia/trabajodocker-web:latest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[Docker hub image](https://hub.docker.com/r/gabogarcia/trabajodocker-web)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 2. Redis
+### - Persistencia redis
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+El primer paso es crear la persistencia para redis. Utilizando un Persistent volume claim llamado redis-pvc
+Creando un Deployment y un servicio para redis en el mismo manifiesto `redis.yaml`
 
-## Learn More
+Nota: tambien puedo usar un statefulSet para poder escalar el PVC en mas replicas, pero no es necesario en este caso
 
-To learn more about Next.js, take a look at the following resources:
+### - Deployment redis
+El deployment se llama `redis-app`
+Busca la imagen `redislabs/redismod` y la levanta en el puerto 6379. 
+### - Service redis
+Un simple servicio `Cluster IP` para que sea solamente accesible dentro de mi cluster
+Con nombre `redis-service` para poder utilizar redis a travez del puerto `redis-service:6379`
+ 
+## Next Web app
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No necesita persistencia porque consume el servicio de redis
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### - Deployment 
+Un deployment con 3 replicas , es decir con 3 pods dentro del nodo, cada pod contiene un container de la imagen `gabogarcia/trabajodocker-web:latest` que esta en docker registry
+
+Se expone en el puerto 3000. 
+Utiliza el `redis-service` del puerto 6379
+
+### - Service 
+
+Busca los pods que tenga el label `web` en selector
+Es un servicio del tipo load balancer que crea una IP Publica para poder acceder desde fuera del cluster
+
+primero tengo que correr:
+
+`
+kubectl apply -f redis.yaml
+`
+
+Para poder crear el servicio de redis y poder conectarlo con mi aplicacion web en next js 
+
+`
+kubectl apply -f next.yaml
+`
+Aca podemos observar: 
+- 3 pods creados para web y 1 pod para redis
+- 2 services , uno para redis-service y otro para web-service con web-service con el external IP `172.21.0.2 `
+
+![alt text](image-1.png)
+
+
+Abro en http://localhost:3000
+
+## redis.yaml
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-app
+  template:
+    metadata:
+      labels:
+        app: redis-app
+    spec:
+      containers:
+        - name: redis
+          image: redislabs/redismod
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: redis-storage
+      volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis-app
+  ports:
+    - port: 6379
+      targetPort: 6379
+```
+
+
+### next.yaml
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: gabogarcia/trabajodocker-web:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+
+
+```
