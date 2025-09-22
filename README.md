@@ -1,5 +1,6 @@
 
 # Trabajo practico integrador 2 - Luis Gabriel Garcia
+# Con GCLOUD
 
 ## Enunciado
 
@@ -27,6 +28,7 @@ docker push gabogarcia/trabajodocker-web:latest
 ```
 
 [Docker hub image](https://hub.docker.com/r/gabogarcia/trabajodocker-web)
+
 
 ## 2. Redis
 ### - Persistencia redis
@@ -60,6 +62,13 @@ Utiliza el `redis-service` del puerto 6379
 Busca los pods que tenga el label `web` en selector
 Es un servicio del tipo load balancer que crea una IP Publica para poder acceder desde fuera del cluster
 
+
+## Google cloud
+Me creo el cluster en google cloud y me paro localmente en el cluste de gcloud
+
+![alt text](image-2.png)
+
+
 primero tengo que correr:
 
 `
@@ -79,8 +88,15 @@ Aca podemos observar:
 
 ![alt text](image-1.png)
 
+Nota:
+Si usara el cluster de docker desktop
+Abro en http://localhost:3000 
 
-Abro en http://localhost:3000
+## Google cloud me provee una IP Publica [Accede a mi Web](http://34.95.136.11:3000/)
+
+![alt text](image-3.png)
+
+![alt text](image-4.png)
 
 ## redis.yaml
 
