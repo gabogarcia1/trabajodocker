@@ -37,8 +37,10 @@ Creando un Deployment y un servicio para redis en el mismo manifiesto `redis.yam
 Nota: tambien puedo usar un statefulSet para poder escalar el PVC en mas replicas, pero no es necesario en este caso
 
 ### - Deployment redis
-El deployment se llama `redis-app`
-Busca la imagen `redislabs/redismod` y la levanta en el puerto 6379. 
+- El deployment se llama `redis-deployment`
+- Busca la imagen `redislabs/redismod` y la levanta en el puerto 6379. 
+- Monta el PVC en `/data`
+
 ### - Service redis
 Un simple servicio `Cluster IP` para que sea solamente accesible dentro de mi cluster
 Con nombre `redis-service` para poder utilizar redis a travez del puerto `redis-service:6379`
@@ -71,7 +73,9 @@ kubectl apply -f next.yaml
 `
 Aca podemos observar: 
 - 3 pods creados para web y 1 pod para redis
-- 2 services , uno para redis-service y otro para web-service con web-service con el external IP `172.21.0.2 `
+- 2 servicios: `redis-service` (ClusterIP) y `web-service` (LoadBalancer). 
+- En Docker Desktop, el LoadBalancer asigna un NodePort, por lo que la aplicación se puede acceder en el host mediante `http://localhost:32760`. 
+- En un cluster en la nube, `web-service` recibiría una IP pública accesible desde Internet.
 
 ![alt text](image-1.png)
 
