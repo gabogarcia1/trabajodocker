@@ -82,8 +82,7 @@ kubectl apply -f next.yaml
 `
 Aca podemos observar: 
 - 3 pods creados para web y 1 pod para redis
-- 2 servicios: `redis-service` (ClusterIP) y `web-service` (LoadBalancer). 
-- En Docker Desktop, el LoadBalancer asigna un NodePort, por lo que la aplicación se puede acceder en el host mediante `http://localhost:32760`. 
+- 2 servicios: `redis-service` (ClusterIP) y `web-service` (LoadBalancer).  
 - En un cluster en la nube, `web-service` recibiría una IP pública accesible desde Internet.
 
 ![alt text](image-1.png)
